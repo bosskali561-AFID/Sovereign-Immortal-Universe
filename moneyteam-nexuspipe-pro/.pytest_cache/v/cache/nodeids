@@ -1,0 +1,15 @@
+[
+  "tests/test_knowledge.py::test_config_redacts_secrets",
+  "tests/test_knowledge.py::test_knowledge_is_append_only",
+  "tests/test_knowledge.py::test_lspa_cycle_records_knowledge",
+  "tests/test_local_llm.py::test_explanation_falls_back_to_template_when_disabled",
+  "tests/test_local_llm.py::test_explanation_unreachable_falls_back_to_template",
+  "tests/test_local_llm.py::test_local_llm_disabled_reports_unavailable_honestly",
+  "tests/test_production.py::test_coinbase_live_requires_credentials",
+  "tests/test_production.py::test_live_gate_blocks_by_default",
+  "tests/test_production.py::test_ml_iqr_detects_outlier",
+  "tests/test_production.py::test_payload_clean_redacts_secrets",
+  "tests/test_production.py::test_readiness_defaults_not_live",
+  "tests/test_production.py::test_security_module_imports",
+  "tests/test_production.py::test_stripe_live_requires_live_key"
+]
