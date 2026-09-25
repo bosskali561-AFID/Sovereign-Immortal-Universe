@@ -6,7 +6,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "MONEYTEAM / NexusPipe Pro"
-    version: str = "4.3.0"
+    version: str = "4.4.0"
     environment: str = "development"
     host: str = "0.0.0.0"
     port: int = 8000

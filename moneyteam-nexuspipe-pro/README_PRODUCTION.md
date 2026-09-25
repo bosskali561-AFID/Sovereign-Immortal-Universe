@@ -81,3 +81,13 @@ docker compose -f docker-compose.production.yml up --build
 - `migrations/versions/0002_knowledge_base.py` — Alembic migration for the full
   knowledge base.
 - `pyproject.toml` — ruff + pytest config; the CI lint gate now runs locally too.
+
+## v4.4 — extensible signal-ingestion registry
+
+- `app/services/signals.py` — pluggable signal sources with honest availability
+  telemetry: `sim_market`, `document_text`, `blockchain_paper` (local, deterministic)
+  plus `web_probe`, `ocr_scan`, `rf_scan` (offline stubs that refuse to fabricate).
+- `GET /api/v1/signals/sources` — registry listing with per-source status.
+- `POST /api/v1/signals/ingest` (admin) — run a source; success is recorded
+  append-only in the knowledge base; offline stubs record nothing.
+- L.S.P.A. intake phase now draws from the registry (`registry:sim_market`).

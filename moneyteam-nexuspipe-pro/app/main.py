@@ -9,7 +9,8 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .api.knowledge_routes import router as knowledge_router
 from .api.ml_routes import router as ml_router
-from .api.routes import router
+from .api.routes import router as main_router
+from .api.signal_routes import router as signal_router
 from .config import get_settings
 from .db import init_db
 
@@ -58,9 +59,10 @@ async def security_and_rate_limit(request: Request, call_next):
     return response
 
 
-app.include_router(router)
+app.include_router(main_router)
 app.include_router(knowledge_router)
 app.include_router(ml_router)
+app.include_router(signal_router)
 
 
 @app.get("/", include_in_schema=False)

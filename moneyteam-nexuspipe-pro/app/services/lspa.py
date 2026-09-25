@@ -1,5 +1,5 @@
-"""Six-phase L.S.P.A. cycle, integrated with the knowledge base and the
-local-LLM explanation engine.
+"""Six-phase L.S.P.A. cycle, integrated with the signal registry, the knowledge
+base and the local-LLM explanation engine.
 
 Intake -> Plan -> Delegate -> Execute -> Verify -> Report.
 Paper mode only: no network calls, no live trades. The delegate phase reports
@@ -7,8 +7,6 @@ agent availability honestly, and anomaly explanations state their true source.
 """
 from __future__ import annotations
 
-import random
-import statistics
 import uuid
 
 from sqlalchemy.orm import Session
@@ -16,7 +14,7 @@ from sqlalchemy.orm import Session
 from .audit import audit
 from .knowledge import record_failure, record_opportunity, record_signal, record_winner
 from .local_llm import explain_anomalies, local_llm_status
-from .ml_checker import evaluate_iqr
+from .signals import run_source
 
 SYMBOLS = ["ETH-USDC", "BSC-CAKE", "SOL-USDC"]
 
@@ -36,25 +34,8 @@ def _detect_runtime() -> str:
 
 
 def _generate_signals(seed: int) -> list[dict]:
-    rng = random.Random(seed)
-    signals = []
-    for symbol in SYMBOLS:
-        prices = [100.0]
-        for _ in range(60):
-            prices.append(max(0.01, prices[-1] * (1 + rng.gauss(0, 0.01))))
-        analysis = evaluate_iqr([round(p, 4) for p in prices])
-        signals.append(
-            {
-                "symbol": symbol,
-                "last": round(prices[-1], 4),
-                "mean": round(statistics.mean(prices), 4),
-                "stdev": round(statistics.pstdev(prices), 4),
-                "trend": "up" if prices[-1] > prices[0] else "down",
-                "anomalies": analysis.get("anomaly_count", 0),
-                "analysis": analysis,
-            }
-        )
-    return signals
+    """Intake now draws from the signal registry instead of inline generation."""
+    return [run_source("sim_market", symbol=s, seed=seed) for s in SYMBOLS]
 
 
 def run_lspa_cycle(db: Session, seed: int = 42, top_n: int = 2) -> dict:
@@ -69,7 +50,7 @@ def run_lspa_cycle(db: Session, seed: int = 42, top_n: int = 2) -> dict:
         record_signal(db, "local_simulated", s)
     phase_log.append(
         {"phase": "intake", "status": "success", "signals_ingested": len(signals),
-         "source": "local_simulated", "seed": seed}
+         "source": "registry:sim_market", "seed": seed}
     )
 
     # Phase 2: Plan — EPT = Profit^2 / (Effort x Task)

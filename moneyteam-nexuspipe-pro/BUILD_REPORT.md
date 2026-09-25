@@ -1,57 +1,33 @@
-# BUILD REPORT — MONEYTEAM / NexusPipe Pro v4.3
+# BUILD REPORT — MONEYTEAM / NexusPipe Pro v4.4
 
-Built and verified on 2026-09-15 in a clean Python 3.11 environment.
+Built and verified on 2026-09-24 in a clean Python 3.11 environment.
 This report contains only checks that were actually executed — no claimed-but-unrun results.
 
-## v4.3 — missing modules implemented, integrated, executed
+## v4.4 — extensible signal-ingestion registry
 
 | Module | Purpose |
 |--------|---------|
-| `app/services/local_llm.py` | Ollama/local-LLM integration: the natural-language anomaly explanation engine. Offline-first (disabled by default), telemetry-verified, deterministic template fallback — source is always reported honestly |
-| `app/api/ml_routes.py` | `POST /api/v1/ml/explain` — IQR analysis + natural-language explanation |
-| `scripts/setup_local_llm.sh` | One-command local Ollama setup: install, `ollama pull`, runtime verification via `/api/tags` (refuses to claim success without telemetry) |
-| `scripts/setup_android_workspace.sh` | Android Studio workspace setup: toolchain check, release keystore via keytool, gradle.properties guidance |
-| `android/.../KeystoreHelper.java` | The AndroidKeyStore helper from the specification (KeyStore.getInstance → load(null) → getCertificate(alias) → getPublicKey()) |
-| `migrations/versions/0002_knowledge_base.py` | Alembic migration for all knowledge-base tables (signals_raw, opportunities, winners, failures, audit_events) |
-| `app/static/index.html` | Dashboard wired to health/readiness/config/knowledge/L.S.P.A./explain endpoints |
-| `pyproject.toml` | Ruff + pytest configuration (lint gate now actually enforced) |
-
-L.S.P.A. cycle now probes the local LLM honestly in the delegate phase
-(`llm_source: disabled|unreachable|ollama`) and the report carries the anomaly
-explanation with its true source.
+| `app/services/signals.py` | Signal registry: `sim_market`, `document_text`, `blockchain_paper` (local, deterministic) + `web_probe`, `ocr_scan`, `rf_scan` (offline stubs that refuse to fabricate — status `offline_by_default`, 0 network calls) |
+| `app/api/signal_routes.py` | `GET /api/v1/signals/sources` (honest availability), `POST /api/v1/signals/ingest` (admin, records append-only) |
+| `app/services/lspa.py` | Intake phase now draws from the registry (`registry:sim_market`) instead of inline generation |
+| `tests/test_signals.py` | 7 tests: availability honesty, unknown source, stub no-fabrication, determinism, document extraction, ingest persistence, stub-persists-nothing |
 
 ## Verification evidence (actual runs)
 
 | Check | Command | Result |
 |-------|---------|--------|
 | Lint | `ruff check app scripts tests` | All checks passed |
-| Syntax compilation | `python -m compileall -q app scripts migrations tests` | PASS (exit 0) |
-| Test suite | `pytest -q` | **13 passed** |
-| Explanation endpoint | `POST /api/v1/ml/explain` | success, 1 anomaly, `source: template` (LLM disabled — honestly reported) |
-| L.S.P.A. cycle | `POST /api/v1/lspa/cycle` (seed=7, top_n=3) | success, delegate `llm_source: disabled`, 0 network/live calls |
-| Knowledge persistence | `GET /api/v1/knowledge/summary` | 3 signals, 3 opportunities, 3 winners recorded |
-| Config redaction | `GET /api/v1/config` | all secrets `[REDACTED]`, `local_llm_enabled: false` exposed |
-| Dashboard | `GET /` | 200, L.S.P.A. controls present |
-| Unreachable-LLM fallback | unit test with `LOCAL_LLM_ENABLED=true` on a dead port | status `unreachable`, explanation falls back to `template` |
+| Test suite | `pytest -q` | **20 passed** (13 v4.3 + 7 v4.4) |
+| Sources API | `GET /api/v1/signals/sources` | 3 local + 3 offline_stub, honest statuses |
+| Ingest API | `POST /api/v1/signals/ingest` (document_text) | success, recorded in knowledge base |
+| Offline stub | `POST /api/v1/signals/ingest` (web_probe) | `offline_by_default`, 0 network calls, nothing recorded |
+| L.S.P.A. cycle | `POST /api/v1/lspa/cycle` | success, intake via registry, 0 network/live calls |
+| Auth gate | ingest without token | 401 |
 
-Setup scripts (`setup_local_llm.sh`, `setup_android_workspace.sh`) are written and
-syntax-checked but intentionally NOT executed here — they install software and
-create keystores on the operator's machine and require network access and a
-`KEYSTORE_PASS`; run them where you deploy.
+## Invariants (unchanged, enforced)
 
-## Fixes carried forward
-
-- v4.1: `app/security.py` import bug; `app/db.py` engine-singleton collision.
-- v4.3: removed unused imports flagged by ruff; added `sample_count` to IQR output.
-
-## Security posture (unchanged, enforced)
-
-```
-ALLOW_LIVE_EXECUTION=false   KILL_SWITCH=true
-REQUIRE_HUMAN_APPROVAL=true   FINANCIAL_MODE=sandbox
-TRADING_MODE=paper           REQUIRE_AUTH=true
-LOCAL_LLM_ENABLED=false (offline-first)
-```
-
-Invariants: **no verified provider receipt = no claimed execution** and
-**no model load is ever claimed without telemetry**.
+1. No verified provider receipt = no claimed execution.
+2. No model load is ever claimed without telemetry evidence.
+3. No fabricated data: offline stubs say they are offline.
+4. Knowledge base is append-only; history is never rewritten.
+5. Offline/paper defaults require explicit, audited human action to change.
