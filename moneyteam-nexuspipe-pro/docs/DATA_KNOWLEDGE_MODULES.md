@@ -118,3 +118,22 @@ Offline-first Ollama integration:
 2. No model load is ever claimed without telemetry evidence.
 3. Knowledge base is append-only; history is never rewritten.
 4. Offline/paper defaults require explicit, audited human action to change (see `PRODUCTION_LIVE_RUNBOOK.md`).
+
+## 9. Signal ingestion registry — `app/services/signals.py` (v4.4)
+
+Pluggable signal sources with honest availability telemetry. Sources that would require network or hardware are offline stubs: they return `offline_by_default` with zero network calls instead of fabricating data.
+
+| Source | Kind | Status |
+|---|---|---|
+| `sim_market` | market | local, deterministic (seeded per symbol) |
+| `document_text` | document | local — extracts numbers from text, runs IQR analysis |
+| `blockchain_paper` | blockchain | local — simulated balances, no chain query made |
+| `web_probe` | web | offline stub |
+| `ocr_scan` | hardware | offline stub |
+| `rf_scan` | hardware | offline stub |
+
+- `run_source(name, **params)` — execute one source; unknown sources are rejected with the list of available ones.
+- `ingest(db, name, **params)` — run a source and record it append-only in `signals_raw`; offline stubs record nothing.
+- `available_sources()` — per-source status for the availability API.
+- API: `GET /api/v1/signals/sources` · `POST /api/v1/signals/ingest` (admin).
+- The L.S.P.A. intake phase now draws from this registry (`registry:sim_market`).
